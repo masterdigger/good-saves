@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 from cookie_handler import CookieHandler
 from http_client import IHTTPClient
-from config import DATA_PARAMS, BASE_RESPONSE, HOST, TEST_MODE
+from config import DATA_PARAMS, HOST, TEST_MODE, get_base_response
 
 
 class FormData(BaseModel):
@@ -20,7 +20,7 @@ class FormData(BaseModel):
 class FormHandler:
     """Handles form operations, including fetching dynamic values and submission."""
 
-    def __init__(self, client: IHTTPClient, form_data: FormData, path: str, query_params: Optional[dict] = None, test_mode: bool = False):
+    def __init__(self, client: IHTTPClient, form_data: FormData, path: str, query_params: Optional[dict] = None, test_mode: bool = False, base_response: Optional[Dict[str, Any]] = None):
         """
         Initialize the FormHandler.
 
@@ -30,6 +30,7 @@ class FormHandler:
             path (str): The path for the form submission.
             query_params (Optional[dict], optional): Query parameters for the form submission. Defaults to None.
             test_mode (bool, optional): Flag to enable test mode. Defaults to False.
+            base_response (Optional[Dict[str, Any]], optional): The base response to use for dynamic values. Defaults to None.
         """
         self.client = client
         self.form_data = form_data
@@ -37,6 +38,7 @@ class FormHandler:
         self.query_params = query_params
         self.cookie_handler = CookieHandler(client=self.client, host=HOST)
         self.test_mode = test_mode
+        self.base_response = base_response or get_base_response()
         logger.info("FormHandler initialized successfully.")
 
     def get_attrs(self, key: str) -> Dict[str, str]:
@@ -106,7 +108,7 @@ class FormHandler:
                     elif key == "jquery":
                         value = tag.next_sibling.get("value", "")
                     else:
-                        value = BASE_RESPONSE.get(key, "")
+                        value = self.base_response.get(key, "")
 
                     data[tag["name"]] = [value]
                     fr_data[tag["name"]] = value
@@ -119,7 +121,7 @@ class FormHandler:
                 elif key == "upTextareaControl":
                     textareas = soup.find_all(attrs=attrs)
                     for i, textarea in enumerate(textareas):
-                        value = BASE_RESPONSE[key][i]
+                        value = self.base_response[key][i]
                         data[textarea["name"]] = [value]
                         fr_data[textarea["name"]] = value
 
@@ -135,7 +137,7 @@ class FormHandler:
                     fr_data[tag["name"]] = json.loads(value)
 
                 elif key == "Submitted By":
-                    value = BASE_RESPONSE.get(key, "Default User")
+                    value = self.base_response.get(key, "Default User")
                     data[tag["name"]] = [value]
                     fr_data[tag["name"]] = value
 

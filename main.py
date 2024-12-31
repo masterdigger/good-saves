@@ -16,6 +16,7 @@ from config.logger_config import setup_logger
 from http_client import HTTPClient
 from form_handler import FormHandler
 from cookie_handler import CookieHandler
+from config import get_base_response  # P0280
 
 # Setup logging
 logger = setup_logger()
@@ -75,7 +76,7 @@ if __name__ == "__main__":
             logger.info("Initial GET request successful.")
 
             soup = BeautifulSoup(response.text, "html.parser")
-            form_handler = FormHandler(client=client, form_data=FormData(data={}), path=PATH, query_params=QUERY_PARAMS)
+            form_handler = FormHandler(client=client, form_data=FormData(data={}), path=PATH, query_params=QUERY_PARAMS, base_response=BASE_RESPONSE)  # Pdb80
 
             form_handler.parse_cookie(soup)
             logger.info("Cookies parsed and set.")

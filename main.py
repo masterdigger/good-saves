@@ -72,82 +72,32 @@ class IHTTPClient(ABC):
 
 
 class HTTPClient(IHTTPClient):
-    """HTTP client for managing cookies and session."""
-
-    def __init__(self, base_url: str, headers_list: List[Dict[str, str]], timeout: httpx.Timeout = httpx.Timeout(30.0, connect=15.0, read=60.0)):
-        self.base_url = base_url
-        self.headers_list = headers_list
-        self.timeout = timeout
-        self.recent_headers = self.get_recent_headers()
-        self.random_headers = self.get_random_headers()
-        self.session: Optional[httpx.Client] = None
-        logger.info("HTTPClient initialized.")
-
-    def __enter__(self) -> "HTTPClient":
-        self.session = httpx.Client(base_url=self.base_url, headers=self.random_headers, follow_redirects=True, timeout=self.timeout)
-        logger.info("HTTP session opened.")
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        if self.session:
-            self.session.close()
-            logger.info("HTTP session closed.")
-        with open(RECENT_HEADERS_FILE, "w") as f:
-            json.dump(self.recent_headers, f)
-            logger.debug("Recent headers saved to file.")
-
-    def get_recent_headers(self) -> List[Dict[str, str]]:
-        if RECENT_HEADERS_FILE.exists():
-            with open(RECENT_HEADERS_FILE, "r") as f:
-                headers = json.load(f)
-                logger.debug("Loaded recent headers from file.")
-                return headers
-        return []
-
-    def save_recent_headers(self, headers: Dict[str, str]):
-        self.recent_headers.insert(0, headers)
-        self.recent_headers = self.recent_headers[:3]
-        logger.debug("Updated recent headers.")
-
-    def get_random_headers(self) -> Dict[str, str]:
-        candidate = None
-        while not candidate or candidate in self.recent_headers:
-            candidate = random.choice(self.headers_list)
-        self.save_recent_headers(candidate)
-        logger.debug(f"Selected headers: {candidate}")
-        return candidate
-
-    def new_cookie(self, value: Tuple[str, str], domain: str, path: str):
-        self.session.cookies.set(value[0], value[1], domain=domain, path=path)
-        logger.debug(f"Session cookies: {self.session.cookies}")
-
     def get(self, path: str, params: Optional[dict] = None) -> httpx.Response:
         try:
-            logger.info(f"Sending GET request to {path} with params {params}")
-            response = self.session.get(path, params=params, headers={"Upgrade-Insecure-Requests": "1"})
-            logger.debug(f"GET Response: {response.status_code}")
+            logger.info(f"Sending GET request to {path} with parameters: {params}")
+            response = self.session.get(path, params=params)
             response.raise_for_status()
+            logger.info(f"GET request successful. Status code: {response.status_code}")
             return response
         except httpx.HTTPStatusError as e:
-            logger.error(f"HTTP error during GET: {e.response.status_code}")
+            logger.error(f"HTTP error during GET request: {e.response.status_code} - {e.response.text}")
             raise
         except httpx.RequestError as e:
-            logger.error(f"Request error during GET: {e}")
+            logger.error(f"Request error during GET request: {e}")
             raise
 
     def post(self, path: str, data: dict, params: Optional[dict] = None) -> httpx.Response:
         try:
-            logger.info(f"Sending POST request with data: {data}")
-            logger.info(f"Sending POST request to {path} with params {params}")
-            response = self.session.post(url=path, data=data, params=params)
-            logger.debug(f"POST request succeeded: {response.text}")
+            logger.info(f"Sending POST request to {path} with data: {data} and parameters: {params}")
+            response = self.session.post(path, data=data, params=params)
             response.raise_for_status()
+            logger.info(f"POST request successful. Status code: {response.status_code}")
             return response
         except httpx.HTTPStatusError as e:
-            logger.error(f"HTTP error during POST: {e.response.status_code}")
+            logger.error(f"HTTP error during POST request: {e.response.status_code} - {e.response.text}")
             raise
         except httpx.RequestError as e:
-            logger.error(f"Request error during POST: {e}")
+            logger.error(f"Request error during POST request: {e}")
             raise
 
 
@@ -180,157 +130,123 @@ class CookieHandler:
 
 
 class FormHandler:
-    """Handles form operations, including fetching dynamic values and submission."""
-
-    def __init__(self, client: IHTTPClient, form_data: FormData, path: str, query_params: Optional[dict] = None, test_mode: bool = False):
-        self.client = client
-        self.form_data = form_data
-        self.path = path
-        self.query_params = query_params
-        self.cookie_handler = CookieHandler(client=self.client, host=HOST)
-        self.test_mode = test_mode
-        logger.info("FormHandler initialized.")
-
-    def get_attrs(self, key: str) -> Dict[str, str]:
-        """Return attributes for a given key from DATA_PARAMS."""
-        return dict(zip(DATA_PARAMS[key]["attrs"], DATA_PARAMS[key]["query"]))
-        self.cookie_handler.parse_and_set_cookies(soup)
-
-    def set_new_url(self, url):
-        url_object = urlparse(url.get("action"))
-        self.path = url_object.path
-        self.query_params.clear()
-        self.query_params = parse_qs(url_object.query)
-
-    def append_url_query(self, value):
-        self.query_params["qs_actionMode"] = [value.get("value", "")]
-        self.query_params["qs_template"] = ["stage"]
-        self.query_params["rq_xhr"] = ["31"]
-
     def fetch_dynamic_values(self, soup: BeautifulSoup) -> Dict[str, Any]:
-        """Fetch dynamic values from the form and populate the POST data."""
-        template_keys = ["Location", "Good Save Type", "Good Save Category", "Good Save Classification", "Risk Category", "upTextareaControl", "Submitted By"]
         data = {}
         fr_data = {}
         try:
             for key, param in DATA_PARAMS.items():
                 attrs = self.get_attrs(key)
                 tag = soup.find(attrs=attrs)
+
                 if not tag:
-                    logger.warning(f"No matching tag found for key: {key}, attributes: {attrs}")
+                    logger.warning(f"No matching element found for key: {key}, attributes: {attrs}")
                     continue
+
                 if key in ["Project", "Location", "Good Save Type", "Good Save Category", "Good Save Classification", "Risk Category", "jquery"]:
                     if key == "Project" and tag.has_attr("name"):
-                        data[tag["name"]] = [tag.contents[1].get("value", "")]
-                        fr_data[tag["name"]] = tag.contents[1].get("value", "")
+                        value = tag.contents[1].get("value", "")
                     elif key == "jquery":
-                        data[tag.next_sibling["name"]] = [tag.next_sibling.get("value", "")]
-                        fr_data[tag.next_sibling["name"]] = tag.next_sibling.get("value", "")
+                        value = tag.next_sibling.get("value", "")
                     else:
-                        data[tag["name"]] = [BASE_RESPONSE.get(key, "")]
-                        fr_data[tag["name"]] = BASE_RESPONSE.get(key, "")
+                        value = BASE_RESPONSE.get(key, "")
+
+                    data[tag["name"]] = [value]
+                    fr_data[tag["name"]] = value
+
                     sibling = tag.parent.next_sibling
                     if sibling and sibling.has_attr("name"):
                         data[sibling["name"]] = [sibling.get("value", "")]
                         fr_data[sibling["name"]] = sibling.get("value", "")
+
                 elif key == "upTextareaControl":
                     textareas = soup.find_all(attrs=attrs)
                     for i, textarea in enumerate(textareas):
-                        data[textarea["name"]] = [BASE_RESPONSE[key][i]]
-                        fr_data[textarea["name"]] = BASE_RESPONSE[key][i]
+                        value = BASE_RESPONSE[key][i]
+                        data[textarea["name"]] = [value]
+                        fr_data[textarea["name"]] = value
+
                 elif key == "fr_ActionId":
                     self.append_url_query(tag)
-                    data[tag["name"]] = [tag.get("value", "")]
-                    fr_data[tag["name"]] = tag.get("value")
+                    value = tag.get("value", "")
+                    data[tag["name"]] = [value]
+                    fr_data[tag["name"]] = value
+
                 elif key == "fr_formState":
-                    data[tag["name"]] = [tag.get("value")]
-                    fr_data[tag["name"]] = json.loads(tag.get("value"))
+                    value = tag.get("value")
+                    data[tag["name"]] = [value]
+                    fr_data[tag["name"]] = json.loads(value)
+
                 elif key == "Submitted By":
-                    data[tag["name"]] = [BASE_RESPONSE.get(key, "Salboheds")]
-                    fr_data[tag["name"]] = BASE_RESPONSE.get(key, "Salboheds")
+                    value = BASE_RESPONSE.get(key, "Default User")
+                    data[tag["name"]] = [value]
+                    fr_data[tag["name"]] = value
+
                 elif key == "Header_Container_AppMain":
                     fr_data["fr_formGuid"] = tag.get("class", "")[0][5:]
                     fr_data["fr_formName"] = tag.get("name", "")
                     fr_data["fr_uniqueId"] = tag.get("id", "")
-                    url_form_post = self.set_new_url(tag)
+                    self.set_new_url(tag)
+
                 else:
-                    data[tag["name"]] = [tag.get("value", "")]
+                    value = tag.get("value", "")
+                    data[tag["name"]] = [value]
                     if key not in ["CSRFToken", "fr_fupUniqueId"]:
-                        fr_data[tag["name"]] = tag.get("value", "")
-                logger.debug(f"Extracted data for '{key}'.")
+                        fr_data[tag["name"]] = value
+
+                logger.debug(f"Extracted data for key '{key}': {value}")
+
             data["fr_formData"] = [json.dumps([fr_data], separators=(',', ':'))]
+
             with open("postdata.json", "w", encoding="utf-8") as file:
                 json.dump(data, file, ensure_ascii=False, indent=4)
+                logger.info("Dynamic form data saved to postdata.json.")
+
         except Exception as e:
-            logger.error(f"Error fetching dynamic values: {e}")
-            logger.debug(f"Extracted data in dict {data}")
+            logger.error(f"Error while fetching dynamic values: {e}")
             raise
+
         return data
 
-    def parse_cookie(self, soup: BeautifulSoup):
-        """Extract and set cookies from JavaScript in the response."""
-        try:
-            script_tag = soup.find(string=re.compile("Helper.setCookie"))
-            if script_tag:
-                logger.info("JavaScript containing cookies found.")
-                pattern = r'Helper\.setCookie\("([^"]+)",\s*"([^"]+)",\s*(true|false)\)'
-                match = re.search(pattern, script_tag)
-                if match:
-                    cookie_name, cookie_value, _ = match.groups()
-                    self.client.new_cookie((cookie_name, cookie_value), domain=HOST, path="/")
-                    logger.info(f"New cookie set: {cookie_name}")
-                else:
-                    logger.warning("No matching cookie pattern found in script tag.")
-            else:
-                logger.warning("No script matching 'Helper.setCookie' found.")
-        except Exception as e:
-            logger.error(f"Error parsing cookie: {e}")
-            raise
-
     def submit_form(self) -> Optional[httpx.Response]:
-        """Submit the form with the updated POST data."""
         try:
             response = self.client.get(self.path, params=self.query_params)
-            logger.debug(f"Response headers: {response.headers}")
-            logger.debug(f"Response request: {response.request.headers}")
-            if response.status_code != httpx.codes.OK:
-                logger.error(f"Failed GET request, status code: {response.status_code}")
-                return None
+            logger.info("GET request completed successfully.")
             soup = BeautifulSoup(response.text, "lxml")
-            with open(RESPONSE_HTML_FILE, "w") as file:
-                file.write(str(soup))
             self.parse_cookie(soup)
             updated_post_data = self.fetch_dynamic_values(soup)
+
             if not TEST_MODE:
-                response = self.client.post(path=self.path, data=updated_post_data, params=self.query_params)
-                logger.debug(f"Response headers: {response.headers}")
-                logger.debug(f"Response request: {response.request.headers}")
-                if response.status_code != httpx.codes.OK:
-                    logger.error(f"Failed GET request, status code: {response.status_code}")
-                    return None
-                logger.debug(f"Encode: {response.encoding}")
-                soup = BeautifulSoup(response.text, "xml")
-                with open(POST_RESPONSE_HTML_FILE, "w") as file:
-                    file.write(str(soup))
-                if response.status_code != httpx.codes.OK:
-                    logger.error(f"Failed GET request, status code: {response.status_code}")
-                    return None
-                logger.info("Form successfully submitted.")
+                response = self.client.post(self.path, data=updated_post_data, params=self.query_params)
+                logger.info("Form submission successful.")
                 return response
-            logger.debug("Test mode active, POST request skipped.")
+
+            logger.info("Test mode enabled, POST request skipped.")
         except Exception as e:
-            logger.exception("Failed to submit form.")
+            logger.error(f"Error during form submission: {e}")
             raise
 
 
 if __name__ == "__main__":
+    logger.info("Starting application.")
+
     try:
-        form_data = FormData(data={})
         with HTTPClient(base_url=BASE_URL, headers_list=HEADERS_LIST) as client:
-            logger.info(f"Using dynamic base_response: {BASE_RESPONSE}")
-            form_handler = FormHandler(client=client, form_data=form_data, path=PATH, query_params=QUERY_PARAMS, test_mode=True)
-            form_handler.submit_form()
-    except ValidationError as val_err:
-        logger.error(f"Validation error in FormData: {val_err}")
+            logger.info("HTTPClient initialized successfully.")
+
+            response = client.get(PATH, params=QUERY_PARAMS)
+            logger.info("Initial GET request successful.")
+
+            soup = BeautifulSoup(response.text, "html.parser")
+            form_handler = FormHandler(client=client, form_data=FormData(data={}), path=PATH, query_params=QUERY_PARAMS)
+
+            form_handler.parse_cookie(soup)
+            logger.info("Cookies parsed and set.")
+
+            post_response = form_handler.submit_form()
+            if post_response:
+                logger.info(f"Form submitted successfully. Response: {post_response.text[:100]}...")
+            else:
+                logger.warning("No response received after form submission.")
+
     except Exception as e:
-        logger.critical(f"Critical error occurred: {e}")
+        logger.critical(f"Application terminated due to an error: {e}")

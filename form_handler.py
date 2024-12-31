@@ -21,6 +21,16 @@ class FormHandler:
     """Handles form operations, including fetching dynamic values and submission."""
 
     def __init__(self, client: IHTTPClient, form_data: FormData, path: str, query_params: Optional[dict] = None, test_mode: bool = False):
+        """
+        Initialize the FormHandler.
+
+        Args:
+            client (IHTTPClient): The HTTP client to use for requests.
+            form_data (FormData): The form data to be submitted.
+            path (str): The path for the form submission.
+            query_params (Optional[dict], optional): Query parameters for the form submission. Defaults to None.
+            test_mode (bool, optional): Flag to enable test mode. Defaults to False.
+        """
         self.client = client
         self.form_data = form_data
         self.path = path
@@ -30,28 +40,54 @@ class FormHandler:
         logger.info("FormHandler initialized successfully.")
 
     def get_attrs(self, key: str) -> Dict[str, str]:
-        """Return attributes for a given key from DATA_PARAMS."""
+        """
+        Return attributes for a given key from DATA_PARAMS.
+
+        Args:
+            key (str): The key to fetch attributes for.
+
+        Returns:
+            Dict[str, str]: The attributes for the given key.
+        """
         attrs = dict(zip(DATA_PARAMS[key]["attrs"], DATA_PARAMS[key]["query"]))
         logger.debug(f"Attributes for key '{key}': {attrs}")
         return attrs
 
-    def set_new_url(self, tag):
-        """Set a new URL for the form submission."""
+    def set_new_url(self, tag: BeautifulSoup) -> None:
+        """
+        Set a new URL for the form submission.
+
+        Args:
+            tag (BeautifulSoup): The tag containing the new URL.
+        """
         url_object = urlparse(tag.get("action"))
         self.path = url_object.path
         self.query_params.clear()
         self.query_params = parse_qs(url_object.query)
         logger.info(f"Form submission URL updated to: {self.path}")
 
-    def append_url_query(self, tag):
-        """Append additional query parameters."""
+    def append_url_query(self, tag: BeautifulSoup) -> None:
+        """
+        Append additional query parameters.
+
+        Args:
+            tag (BeautifulSoup): The tag containing the query parameters.
+        """
         self.query_params["qs_actionMode"] = [tag.get("value", "")]
         self.query_params["qs_template"] = ["stage"]
         self.query_params["rq_xhr"] = ["31"]
         logger.debug(f"Updated query parameters: {self.query_params}")
 
     def fetch_dynamic_values(self, soup: BeautifulSoup) -> Dict[str, Any]:
-        """Fetch dynamic values from the form and populate the POST data."""
+        """
+        Fetch dynamic values from the form and populate the POST data.
+
+        Args:
+            soup (BeautifulSoup): The BeautifulSoup object containing the form.
+
+        Returns:
+            Dict[str, Any]: The populated POST data.
+        """
         data = {}
         fr_data = {}
 
@@ -129,8 +165,13 @@ class FormHandler:
 
         return data
 
-    def parse_cookie(self, soup: BeautifulSoup):
-        """Extract and set cookies from JavaScript in the response."""
+    def parse_cookie(self, soup: BeautifulSoup) -> None:
+        """
+        Extract and set cookies from JavaScript in the response.
+
+        Args:
+            soup (BeautifulSoup): The BeautifulSoup object containing the script tag.
+        """
         try:
             script_tag = soup.find(string=re.compile("Helper.setCookie"))
             if script_tag:
@@ -150,7 +191,12 @@ class FormHandler:
             raise
 
     def submit_form(self) -> Optional[httpx.Response]:
-        """Submit the form with the updated POST data."""
+        """
+        Submit the form with the updated POST data.
+
+        Returns:
+            Optional[httpx.Response]: The response from the form submission, if any.
+        """
         try:
             response = self.client.get(self.path, params=self.query_params)
             logger.info("GET request completed successfully.")

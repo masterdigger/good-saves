@@ -14,6 +14,6 @@ def load_config(file_name):
 # Initialize configuration
 config = {
     "logger_config": load_config("logger_config.py"),
-    "config": load_config("config.json"),
+    "config_sample": load_config("config.sample.json"),
     "postdata": load_config("postdata.json")
 }

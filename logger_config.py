@@ -18,5 +18,10 @@ def setup_logger():
                level="ERROR", 
                rotation=log_rotation, 
                retention=log_retention)
+    logger.add("logs/info.log", 
+               format=log_format,
+               level="INFO", 
+               rotation=log_rotation, 
+               retention=log_retention)
     logger.info("Logger initialized.")
     return logger

@@ -19,20 +19,16 @@ class IHTTPClient(ABC):
         pass
 
 
-class HTTPClient(IHTTPClient):
-    """HTTP client for handling cookies and session operations."""
+class SessionManager:
+    """Handles session creation, closing, and management."""
 
-    def __init__(self, base_url: str, headers_list: List[Dict[str, str]], timeout: httpx.Timeout = httpx.Timeout(30.0, connect=15.0, read=60.0)):
+    def __init__(self, base_url: str, timeout: httpx.Timeout):
         self.base_url = base_url
-        self.headers_list = headers_list
         self.timeout = timeout
-        self.recent_headers = self.get_recent_headers()
-        self.random_headers = self.get_random_headers()
         self.session: Optional[httpx.Client] = None
-        logger.info(f"HTTPClient initialized with base_url: {self.base_url}")
 
-    def __enter__(self) -> "HTTPClient":
-        self.session = httpx.Client(base_url=self.base_url, headers=self.random_headers, follow_redirects=True, timeout=self.timeout)
+    def __enter__(self) -> "SessionManager":
+        self.session = httpx.Client(base_url=self.base_url, follow_redirects=True, timeout=self.timeout)
         logger.info("HTTP session started.")
         return self
 
@@ -40,9 +36,15 @@ class HTTPClient(IHTTPClient):
         if self.session:
             self.session.close()
             logger.info("HTTP session closed.")
-        with open("recent_headers.json", "w", encoding="utf-8") as f:
-            json.dump(self.recent_headers, f)
-            logger.debug("Recent headers saved to file.")
+
+
+class HeaderManager:
+    """Handles loading, saving, and selecting headers."""
+
+    def __init__(self, headers_list: List[Dict[str, str]]):
+        self.headers_list = headers_list
+        self.recent_headers = self.get_recent_headers()
+        self.random_headers = self.get_random_headers()
 
     def get_recent_headers(self) -> List[Dict[str, str]]:
         """Load the most recent headers from a file."""
@@ -68,6 +70,34 @@ class HTTPClient(IHTTPClient):
         self.save_recent_headers(candidate)
         logger.debug(f"Selected headers: {candidate}")
         return candidate
+
+    def save_headers_to_file(self):
+        """Save recent headers to a file."""
+        with open("recent_headers.json", "w", encoding="utf-8") as f:
+            json.dump(self.recent_headers, f)
+            logger.debug("Recent headers saved to file.")
+
+
+class HTTPClient(IHTTPClient):
+    """HTTP client for handling cookies and session operations."""
+
+    def __init__(self, base_url: str, headers_list: List[Dict[str, str]], timeout: httpx.Timeout = httpx.Timeout(30.0, connect=15.0, read=60.0)):
+        self.base_url = base_url
+        self.headers_list = headers_list
+        self.timeout = timeout
+        self.session_manager = SessionManager(base_url=self.base_url, timeout=self.timeout)
+        self.header_manager = HeaderManager(headers_list=self.headers_list)
+        logger.info(f"HTTPClient initialized with base_url: {self.base_url}")
+
+    def __enter__(self) -> "HTTPClient":
+        self.session_manager.__enter__()
+        self.session = self.session_manager.session
+        self.session.headers.update(self.header_manager.random_headers)
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.session_manager.__exit__(exc_type, exc_value, traceback)
+        self.header_manager.save_headers_to_file()
 
     def get(self, path: str, params: Optional[dict] = None) -> httpx.Response:
         """Send a GET request to the specified path."""

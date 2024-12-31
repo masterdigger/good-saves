@@ -72,29 +72,85 @@ class IHTTPClient(ABC):
 
 
 class HTTPClient(IHTTPClient):
+    """HTTP client for handling cookies and session operations."""
+
+    def __init__(self, base_url: str, headers_list: List[Dict[str, str]], timeout: httpx.Timeout = httpx.Timeout(30.0, connect=15.0, read=60.0)):
+        self.base_url = base_url
+        self.headers_list = headers_list
+        self.timeout = timeout
+        self.recent_headers = self.get_recent_headers()
+        self.random_headers = self.get_random_headers()
+        self.session: Optional[httpx.Client] = None
+        logger.info(f"HTTPClient initialized with base_url: {self.base_url}")
+
+    def __enter__(self) -> "HTTPClient":
+        self.session = httpx.Client(base_url=self.base_url, headers=self.random_headers, follow_redirects=True, timeout=self.timeout)
+        logger.info("HTTP session started.")
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        if self.session:
+            self.session.close()
+            logger.info("HTTP session closed.")
+        with open(RECENT_HEADERS_FILE, "w", encoding="utf-8") as f:
+            json.dump(self.recent_headers, f)
+            logger.debug("Recent headers saved to file.")
+
+    def get_recent_headers(self) -> List[Dict[str, str]]:
+        """Load the most recent headers from a file."""
+        if RECENT_HEADERS_FILE.exists():
+            with open(RECENT_HEADERS_FILE, "r", encoding="utf-8") as f:
+                headers = json.load(f)
+                logger.debug("Recent headers loaded from file.")
+                return headers
+        logger.warning("No file with recent headers found.")
+        return []
+
+    def save_recent_headers(self, headers: Dict[str, str]):
+        """Save the current headers to the recent headers list."""
+        self.recent_headers.insert(0, headers)
+        self.recent_headers = self.recent_headers[:3]  # Keep only the latest three headers
+        logger.debug(f"Updated recent headers: {self.recent_headers}")
+
+    def get_random_headers(self) -> Dict[str, str]:
+        """Select random headers from the available list."""
+        candidate = None
+        while not candidate or candidate in self.recent_headers:
+            candidate = random.choice(self.headers_list)
+        self.save_recent_headers(candidate)
+        logger.debug(f"Selected headers: {candidate}")
+        return candidate
+
+    def new_cookie(self, value: Tuple[str, str], domain: str, path: str):
+        """Set a new cookie in the session."""
+        self.session.cookies.set(value[0], value[1], domain=domain, path=path)
+        logger.debug(f"New cookie set: {value[0]}={value[1]}")
+
     def get(self, path: str, params: Optional[dict] = None) -> httpx.Response:
+        """Send a GET request to the specified path."""
         try:
-            logger.info(f"Sending GET request to {path} with parameters: {params}")
+            logger.info(f"Sending GET request to {path} with params {params}")
             response = self.session.get(path, params=params)
+            logger.debug(f"GET response: {response.status_code}, content preview: {response.text[:100]}...")
             response.raise_for_status()
-            logger.info(f"GET request successful. Status code: {response.status_code}")
             return response
         except httpx.HTTPStatusError as e:
-            logger.error(f"HTTP error during GET request: {e.response.status_code} - {e.response.text}")
+            logger.error(f"HTTP error during GET request: {e.response.status_code}")
             raise
         except httpx.RequestError as e:
             logger.error(f"Request error during GET request: {e}")
             raise
 
     def post(self, path: str, data: dict, params: Optional[dict] = None) -> httpx.Response:
+        """Send a POST request to the specified path."""
         try:
-            logger.info(f"Sending POST request to {path} with data: {data} and parameters: {params}")
+            logger.info(f"Sending POST request to {path} with data {data} and params {params}")
             response = self.session.post(path, data=data, params=params)
+            logger.debug(f"POST response: {response.status_code}, content preview: {response.text[:100]}...")
             response.raise_for_status()
-            logger.info(f"POST request successful. Status code: {response.status_code}")
             return response
         except httpx.HTTPStatusError as e:
-            logger.error(f"HTTP error during POST request: {e.response.status_code} - {e.response.text}")
+            logger.error(f"HTTP error during POST request: {e.response.status_code}")
             raise
         except httpx.RequestError as e:
             logger.error(f"Request error during POST request: {e}")
@@ -130,9 +186,43 @@ class CookieHandler:
 
 
 class FormHandler:
+    """Handles form operations, including fetching dynamic values and submission."""
+
+    def __init__(self, client: IHTTPClient, form_data: FormData, path: str, query_params: Optional[dict] = None, test_mode: bool = False):
+        self.client = client
+        self.form_data = form_data
+        self.path = path
+        self.query_params = query_params
+        self.cookie_handler = CookieHandler(client=self.client, host=HOST)
+        self.test_mode = test_mode
+        logger.info("FormHandler initialized successfully.")
+
+    def get_attrs(self, key: str) -> Dict[str, str]:
+        """Return attributes for a given key from DATA_PARAMS."""
+        attrs = dict(zip(DATA_PARAMS[key]["attrs"], DATA_PARAMS[key]["query"]))
+        logger.debug(f"Attributes for key '{key}': {attrs}")
+        return attrs
+
+    def set_new_url(self, tag):
+        """Set a new URL for the form submission."""
+        url_object = urlparse(tag.get("action"))
+        self.path = url_object.path
+        self.query_params.clear()
+        self.query_params = parse_qs(url_object.query)
+        logger.info(f"Form submission URL updated to: {self.path}")
+
+    def append_url_query(self, tag):
+        """Append additional query parameters."""
+        self.query_params["qs_actionMode"] = [tag.get("value", "")]
+        self.query_params["qs_template"] = ["stage"]
+        self.query_params["rq_xhr"] = ["31"]
+        logger.debug(f"Updated query parameters: {self.query_params}")
+
     def fetch_dynamic_values(self, soup: BeautifulSoup) -> Dict[str, Any]:
+        """Fetch dynamic values from the form and populate the POST data."""
         data = {}
         fr_data = {}
+
         try:
             for key, param in DATA_PARAMS.items():
                 attrs = self.get_attrs(key)
@@ -207,7 +297,28 @@ class FormHandler:
 
         return data
 
+    def parse_cookie(self, soup: BeautifulSoup):
+        """Extract and set cookies from JavaScript in the response."""
+        try:
+            script_tag = soup.find(string=re.compile("Helper.setCookie"))
+            if script_tag:
+                logger.info("JavaScript containing cookies found.")
+                pattern = r'Helper\.setCookie"([^"]+)",\s*"([^"]+)",\s*(true|false)'
+                match = re.search(pattern, script_tag)
+                if match:
+                    cookie_name, cookie_value, _ = match.groups()
+                    self.client.new_cookie((cookie_name, cookie_value), domain=HOST, path="/")
+                    logger.info(f"New cookie set: {cookie_name}={cookie_value}")
+                else:
+                    logger.warning("No matching cookie pattern found in script tag.")
+            else:
+                logger.warning("No script matching 'Helper.setCookie' found.")
+        except Exception as e:
+            logger.error(f"Error while parsing cookies: {e}")
+            raise
+
     def submit_form(self) -> Optional[httpx.Response]:
+        """Submit the form with the updated POST data."""
         try:
             response = self.client.get(self.path, params=self.query_params)
             logger.info("GET request completed successfully.")

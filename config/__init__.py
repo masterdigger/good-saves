@@ -1,5 +1,4 @@
 import json
-import os
 from pathlib import Path
 
 # Define the path to the config directory
@@ -12,8 +11,4 @@ def load_config(file_name):
         return json.load(file)
 
 # Initialize configuration
-config = {
-    "logger_config": load_config("logger_config.py"),
-    "config": load_config("config.json"),
-    "postdata": load_config("postdata.json")
-}
+config = load_config("config.json")

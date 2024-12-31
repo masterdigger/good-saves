@@ -172,23 +172,7 @@ class FormHandler:
         Args:
             soup (BeautifulSoup): The BeautifulSoup object containing the script tag.
         """
-        try:
-            script_tag = soup.find(string=re.compile("Helper.setCookie"))
-            if script_tag:
-                logger.info("JavaScript containing cookies found.")
-                pattern = r'Helper\.setCookie"([^"]+)",\s*"([^"]+)",\s*(true|false)'
-                match = re.search(pattern, script_tag)
-                if match:
-                    cookie_name, cookie_value, _ = match.groups()
-                    self.client.new_cookie((cookie_name, cookie_value), domain=HOST, path="/")
-                    logger.info(f"New cookie set: {cookie_name}={cookie_value}")
-                else:
-                    logger.warning("No matching cookie pattern found in script tag.")
-            else:
-                logger.warning("No script matching 'Helper.setCookie' found.")
-        except Exception as e:
-            logger.error(f"Error while parsing cookies: {e}")
-            raise
+        self.cookie_handler.parse_and_set_cookies(soup)
 
     def submit_form(self) -> Optional[httpx.Response]:
         """

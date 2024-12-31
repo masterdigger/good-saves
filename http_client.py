@@ -69,11 +69,6 @@ class HTTPClient(IHTTPClient):
         logger.debug(f"Selected headers: {candidate}")
         return candidate
 
-    def new_cookie(self, value: Tuple[str, str], domain: str, path: str):
-        """Set a new cookie in the session."""
-        self.session.cookies.set(value[0], value[1], domain=domain, path=path)
-        logger.debug(f"New cookie set: {value[0]}={value[1]}")
-
     def get(self, path: str, params: Optional[dict] = None) -> httpx.Response:
         """Send a GET request to the specified path."""
         try:

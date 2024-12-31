@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "good-saves"
+version = "0.1.0"
+description = "Auto submit webform."
+authors = ["masterdigger <nikenpelle@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+httpx = "^0.28.1"
+beautifulsoup4 = "^4.12.3"
+loguru = "^0.7.3"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

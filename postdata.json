@@ -1,0 +1,77 @@
+{
+    "CSRFToken": [
+        "03205B57A09673A5F3113A6668083F86AD755C27"
+    ],
+    "fr_fupUniqueId": [
+        "ix8B58FEB9A624AFA42259345C412BE35947845795"
+    ],
+    "trigger-default-submit-button": [
+        ""
+    ],
+    "fr_ActionId": [
+        "actMerge"
+    ],
+    "datecontrol38B8BD48": [
+        "31/12/2024"
+    ],
+    "timecontrolB63D8865": [
+        "02:44"
+    ],
+    "dropdowncontrolC4E5F632": [
+        "177"
+    ],
+    "fr_CurrentFilter_dropdowncontrolC4E5F632": [
+        ""
+    ],
+    "textcontrolCD2E0C0A": [
+        "GVX04"
+    ],
+    "dropdowncontrol4482AA44": [
+        "1"
+    ],
+    "fr_CurrentFilter_dropdowncontrol4482AA44": [
+        ""
+    ],
+    "dropdowncontrol4015716B": [
+        "3"
+    ],
+    "fr_CurrentFilter_dropdowncontrol4015716B": [
+        ""
+    ],
+    "dropdowncontrol25CF950B": [
+        "18"
+    ],
+    "fr_CurrentFilter_dropdowncontrol25CF950B": [
+        ""
+    ],
+    "textareacontrol143F2725": [
+        "Encouraged wearing protective glasses."
+    ],
+    "textareacontrol9E253008": [
+        "Warned about unsafe ladder placement."
+    ],
+    "filecontrol4FEB1DAE_data": [
+        ""
+    ],
+    "dropdowncontrol3C1398E0": [
+        "3"
+    ],
+    "fr_CurrentFilter_dropdowncontrol3C1398E0": [
+        ""
+    ],
+    "textcontrol69C45CFD": [
+        "Salboheds"
+    ],
+    "integercontrol138E5670": [
+        "3"
+    ],
+    "textcontrol15DBF17F": [
+        "new good save"
+    ],
+    "fr_formState": [
+        "{\"formState\": {\"page\": \"B53400B67B5109509D74A97AC27E09F3B0C54141\", \"mode\": \"new\", \"arguments\": null, \"containers\": {\"69FDF151EA7ECE01D9A3A7B68C1E96FD4C4C3498\": {\"name\": \"READ_Good_Saves\", \"dg\": \"BC1CEA9E858772FEAE6E900AE412BE2284521C7C\", \"pks\": []}}}}"
+    ],
+    "fr_formData": [
+        "[{\"fr_formGuid\":\"5365D1E1B0D2AA8809619389BF10387271AD8657\",\"fr_formName\":\"formgroup47F0D271\",\"fr_uniqueId\":\"ix8B58FEB9A624AFA42259345C412BE35947845795_form\",\"trigger-default-submit-button\":\"\",\"fr_ActionId\":\"actMerge\",\"datecontrol38B8BD48\":\"31/12/2024\",\"timecontrolB63D8865\":\"02:44\",\"dropdowncontrolC4E5F632\":\"177\",\"fr_CurrentFilter_dropdowncontrolC4E5F632\":\"\",\"textcontrolCD2E0C0A\":\"GVX04\",\"dropdowncontrol4482AA44\":\"1\",\"fr_CurrentFilter_dropdowncontrol4482AA44\":\"\",\"dropdowncontrol4015716B\":\"3\",\"fr_CurrentFilter_dropdowncontrol4015716B\":\"\",\"dropdowncontrol25CF950B\":\"18\",\"fr_CurrentFilter_dropdowncontrol25CF950B\":\"\",\"textareacontrol143F2725\":\"Encouraged wearing protective glasses.\",\"textareacontrol9E253008\":\"Warned about unsafe ladder placement.\",\"filecontrol4FEB1DAE_data\":\"\",\"dropdowncontrol3C1398E0\":\"3\",\"fr_CurrentFilter_dropdowncontrol3C1398E0\":\"\",\"textcontrol69C45CFD\":\"Salboheds\",\"integercontrol138E5670\":\"3\",\"textcontrol15DBF17F\":\"new good save\",\"fr_formState\":{\"formState\":{\"page\":\"B53400B67B5109509D74A97AC27E09F3B0C54141\",\"mode\":\"new\",\"arguments\":null,\"containers\":{\"69FDF151EA7ECE01D9A3A7B68C1E96FD4C4C3498\":{\"name\":\"READ_Good_Saves\",\"dg\":\"BC1CEA9E858772FEAE6E900AE412BE2284521C7C\",\"pks\":[]}}}}}]"
+    ]
+}

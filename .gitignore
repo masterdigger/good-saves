@@ -1,26 +1,20 @@
-# Ignorera Python-cachefiler
+# Python-specifika uteslutningar
 __pycache__/
 .unused/
 *.py[cod]
 *.pyo
 
-# Ignorera virtuella miljöer
+# Virtuella miljöer
 .venv/
 .env/
 
-# Ignorera Poetrys virtuella miljöer
-.venv/
+# Poetry-specifika filer
+poetry.lock
 
-# Ignorera loggar och tillfälliga filer
+# Loggfiler
+logs/
 *.log
-*.tmp
-*.swp
-*.sqlite3
 
-# Ignorera bygg- och distributionsfiler
-build/
-dist/
-*.egg-info/
-
-# Ignorera konfigurationsfiler med känsliga data
-.env
+# OS-specifika filer
+.DS_Store
+Thumbs.db

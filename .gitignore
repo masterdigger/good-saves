@@ -15,7 +15,6 @@ __pycache__/
 *.log
 *.tmp
 *.swp
-logs/
 *.sqlite3
 
 # Ignorera bygg- och distributionsfiler

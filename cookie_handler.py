@@ -1,7 +1,8 @@
 import re
+
 from bs4 import BeautifulSoup
-from loguru import logger
 from http_client import HTTPClient
+from loguru import logger
 
 
 class CookieHandler:
@@ -21,7 +22,9 @@ class CookieHandler:
                 match = re.search(pattern, script_tag)
                 if match:
                     cookie_name, cookie_value, _ = match.groups()
-                    self.client.new_cookie((cookie_name, cookie_value), domain=self.host, path="/")
+                    self.client.new_cookie(
+                        (cookie_name, cookie_value), domain=self.host, path="/"
+                    )
                     logger.info(f"New cookie set: {cookie_name}")
                 else:
                     logger.warning("No matching cookie pattern found in script tag.")

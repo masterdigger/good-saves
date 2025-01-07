@@ -1,21 +1,16 @@
 import json
 import random
-import re
-from abc import ABC, abstractmethod
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Any, Dict, List, Tuple
 from urllib.parse import parse_qs, urlparse
 
-import httpx
 from bs4 import BeautifulSoup
-import lxml
-from loguru import logger
-from pydantic import BaseModel, ValidationError
 from config.logger_config import setup_logger
-from http_client import HTTPClient
 from form_handler import FormHandler
-from cookie_handler import CookieHandler
+from http_client import HTTPClient
+from loguru import logger
+from pydantic import BaseModel
 
 # Setup logging
 logger = setup_logger()
@@ -31,7 +26,17 @@ POST_RESPONSE_HTML_FILE = LOGS_DIR / "post_response_xnl.xml"
 
 
 @lru_cache(maxsize=None)
-def load_config() -> Tuple[str, str, str, Dict[str, List[str]], List[Dict[str, str]], Dict[str, Dict[str, Any]], Dict[str, Any]]:
+def load_config() -> (
+    Tuple[
+        str,
+        str,
+        str,
+        Dict[str, List[str]],
+        List[Dict[str, str]],
+        Dict[str, Dict[str, Any]],
+        Dict[str, Any],
+    ]
+):
     """Load configuration from config.json and parse URL."""
     with open(CONFIG_FILE, "r") as config_file:
         config = json.load(config_file)
@@ -52,15 +57,36 @@ def load_config() -> Tuple[str, str, str, Dict[str, List[str]], List[Dict[str, s
 
     test_mode = config.get("test_mode", False)
     logger.debug("Loaded configuration successfully.")
-    return base_url, path, host, query_params, config["headers_list"], config["data_params"], base_response, config["form_post_url"], test_mode
+    return (
+        base_url,
+        path,
+        host,
+        query_params,
+        config["headers_list"],
+        config["data_params"],
+        base_response,
+        config["form_post_url"],
+        test_mode,
+    )
 
 
-BASE_URL, PATH, HOST, QUERY_PARAMS, HEADERS_LIST, DATA_PARAMS, BASE_RESPONSE, FORM_POST_URL, TEST_MODE = load_config()
+(
+    BASE_URL,
+    PATH,
+    HOST,
+    QUERY_PARAMS,
+    HEADERS_LIST,
+    DATA_PARAMS,
+    BASE_RESPONSE,
+    FORM_POST_URL,
+    TEST_MODE,
+) = load_config()
 POST_URL = None
 
 
 class FormData(BaseModel):
     """Model to represent and validate form data."""
+
     data: Dict[str, Any]
 
 
@@ -75,14 +101,21 @@ if __name__ == "__main__":
             logger.info("Initial GET request successful.")
 
             soup = BeautifulSoup(response.text, "html.parser")
-            form_handler = FormHandler(client=client, form_data=FormData(data={}), path=PATH, query_params=QUERY_PARAMS)
+            form_handler = FormHandler(
+                client=client,
+                form_data=FormData(data={}),
+                path=PATH,
+                query_params=QUERY_PARAMS,
+            )
 
             form_handler.parse_cookie(soup)
             logger.info("Cookies parsed and set.")
 
             post_response = form_handler.submit_form()
             if post_response:
-                logger.info(f"Form submitted successfully. Response: {post_response.text[:100]}...")
+                logger.info(
+                    f"Form submitted successfully. Response: {post_response.text[:100]}..."
+                )
             else:
                 logger.warning("No response received after form submission.")
 

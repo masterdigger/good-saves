@@ -6,7 +6,6 @@ from typing import Any, Dict, List, Tuple
 from urllib.parse import parse_qs, urlparse
 
 from bs4 import BeautifulSoup
-from config.logger_config import setup_logger
 from form_handler import FormHandler
 from http_client import HTTPClient
 from loguru import logger

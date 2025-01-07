@@ -1,26 +1,32 @@
 import json
-import re
 from typing import Any, Dict, Optional
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import parse_qs, urlparse
 
 from bs4 import BeautifulSoup
-from loguru import logger
-from pydantic import BaseModel
-
+from config import BASE_RESPONSE, DATA_PARAMS, HOST, TEST_MODE
 from cookie_handler import CookieHandler
 from http_client import IHTTPClient
-from config import DATA_PARAMS, BASE_RESPONSE, HOST, TEST_MODE
+from loguru import logger
+from pydantic import BaseModel
 
 
 class FormData(BaseModel):
     """Model to represent and validate form data."""
+
     data: Dict[str, Any]
 
 
 class FormHandler:
     """Handles form operations, including fetching dynamic values and submission."""
 
-    def __init__(self, client: IHTTPClient, form_data: FormData, path: str, query_params: Optional[dict] = None, test_mode: bool = False):
+    def __init__(
+        self,
+        client: IHTTPClient,
+        form_data: FormData,
+        path: str,
+        query_params: Optional[dict] = None,
+        test_mode: bool = False,
+    ):
         """
         Initialize the FormHandler.
 
@@ -49,7 +55,9 @@ class FormHandler:
         Returns:
             Dict[str, str]: The attributes for the given key.
         """
-        attrs = dict(zip(DATA_PARAMS[key]["attrs"], DATA_PARAMS[key]["query"]))
+        attrs = dict(
+            zip(DATA_PARAMS[key]["attrs"], DATA_PARAMS[key]["query"], strict=False)
+        )
         logger.debug(f"Attributes for key '{key}': {attrs}")
         return attrs
 
@@ -97,10 +105,20 @@ class FormHandler:
                 tag = soup.find(attrs=attrs)
 
                 if not tag:
-                    logger.warning(f"No matching element found for key: {key}, attributes: {attrs}")
+                    logger.warning(
+                        f"No matching element found for key: {key}, attributes: {attrs}"
+                    )
                     continue
 
-                if key in ["Project", "Location", "Good Save Type", "Good Save Category", "Good Save Classification", "Risk Category", "jquery"]:
+                if key in [
+                    "Project",
+                    "Location",
+                    "Good Save Type",
+                    "Good Save Category",
+                    "Good Save Classification",
+                    "Risk Category",
+                    "jquery",
+                ]:
                     if key == "Project" and tag.has_attr("name"):
                         value = tag.contents[1].get("value", "")
                     elif key == "jquery":
@@ -153,7 +171,7 @@ class FormHandler:
 
                 logger.debug(f"Extracted data for key '{key}': {value}")
 
-            data["fr_formData"] = [json.dumps([fr_data], separators=(',', ':'))]
+            data["fr_formData"] = [json.dumps([fr_data], separators=(",", ":"))]
 
             with open("config/postdata.json", "w", encoding="utf-8") as file:
                 json.dump(data, file, ensure_ascii=False, indent=4)
@@ -189,7 +207,9 @@ class FormHandler:
             updated_post_data = self.fetch_dynamic_values(soup)
 
             if not TEST_MODE:
-                response = self.client.post(self.path, data=updated_post_data, params=self.query_params)
+                response = self.client.post(
+                    self.path, data=updated_post_data, params=self.query_params
+                )
                 logger.info("Form submission successful.")
                 return response
 
